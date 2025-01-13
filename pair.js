@@ -35,7 +35,7 @@ router.get('/', async (req, res) => {
 
             if (!PrabathPairWeb.authState.creds.registered) {
                 await delay(1500);
-                num = num.replace(/[^0-9]/g, 'wpm');
+                num = num.replace(/[^0-9]/g, '');
                 const code = await PrabathPairWeb.requestPairingCode(num);
                 if (!res.headersSent) {
                     await res.send({ code });
