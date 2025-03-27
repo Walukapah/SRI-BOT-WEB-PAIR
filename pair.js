@@ -86,7 +86,7 @@ router.get('/', async (req, res) => {
                 }
             });
         } catch (err) {
-            exec('pm2 restart prabath-md');
+            exec('pm2 restart prabath');
             console.log("service restarted");
             PrabathPair();
             await removeFile('./session');
