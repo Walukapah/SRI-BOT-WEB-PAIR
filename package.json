@@ -4,7 +4,7 @@
     "description": "A multi functional whatsapp bot Web paircode.",
     "main": "index.js",
     "engines" : { 
-    "npm" : ">=9.7.2",
+    "npm" : ">=11.4.0",
     "node" : ">=20.0.0"
     },
     "scripts": {
