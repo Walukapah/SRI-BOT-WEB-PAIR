@@ -9,7 +9,7 @@ RUN apk add --no-cache \
     jpeg-dev \
     pango-dev \
     giflib-dev \
-    git  # මෙය එක් කරන්න
+    git
 
 WORKDIR /app
 COPY package*.json ./
