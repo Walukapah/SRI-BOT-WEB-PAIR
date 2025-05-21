@@ -8,7 +8,8 @@ RUN apk add --no-cache \
     cairo-dev \
     jpeg-dev \
     pango-dev \
-    giflib-dev
+    giflib-dev \
+    git  # මෙය එක් කරන්න
 
 WORKDIR /app
 COPY package*.json ./
