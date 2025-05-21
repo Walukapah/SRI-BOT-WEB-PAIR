@@ -3,6 +3,10 @@
     "version": "0.0.1",
     "description": "A multi functional whatsapp bot Web paircode.",
     "main": "index.js",
+    "engines" : { 
+    "npm" : ">=9.7.2",
+    "node" : ">=20.0.0"
+    },
     "scripts": {
       "start": "pm2 start index.js --deep-monitoring --attach --name prabath",
       "stop": "pm2 stop prabath",
