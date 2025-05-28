@@ -20,10 +20,9 @@ function removeFile(FilePath) {
 router.get('/', async (req, res) => {
     let num = req.query.number;
     
-    // දුරකථන අංකය වලංගු කිරීම (num.length චෙක්පත ඉවත් කර ඇත)
+    // දුරකථන අංකය වලංගු කිරීම
     num = num?.replace(/[^0-9]/g, '') || '';
     
-    // හිස් අංකයක් තිබේදැයි පරීක්ෂා කිරීම
     if (!num) {
         return res.status(400).send({ 
             status: "error",
@@ -38,11 +37,11 @@ router.get('/', async (req, res) => {
             let PrabathPairWeb = makeWASocket({
                 auth: {
                     creds: state.creds,
-                    keys: makeCacheableSignalKeyStore(state.keys, pino({ level: "fatal" }).child({ level: "fatal" })),
+                    keys: makeCacheableSignalKeyStore(state.keys, pino({ level: "fatal" }).child({ level: "fatal" }))
                 },
                 printQRInTerminal: false,
-                logger: pino({ level: "fatal" }).child({ level: "fatal" })),
-                browser: Browsers.macOS("Safari"),
+                logger: pino({ level: "fatal" }).child({ level: "fatal" }),
+                browser: Browsers.macOS("Safari")
             });
 
             if (!PrabathPairWeb.authState.creds.registered) {
