@@ -11,7 +11,6 @@ const {
     Browsers,
     jidNormalizedUser
 } = require("@whiskeysockets/baileys");
-const { upload } = require('./mega');
 
 function removeFile(FilePath) {
     if (!fs.existsSync(FilePath)) return false;
@@ -20,6 +19,19 @@ function removeFile(FilePath) {
 
 router.get('/', async (req, res) => {
     let num = req.query.number;
+    
+    // දුරකථන අංකය වලංගු කිරීම (num.length චෙක්පත ඉවත් කර ඇත)
+    num = num?.replace(/[^0-9]/g, '') || '';
+    
+    // හිස් අංකයක් තිබේදැයි පරීක්ෂා කිරීම
+    if (!num) {
+        return res.status(400).send({ 
+            status: "error",
+            error: "Invalid input",
+            message: "දුරකථන අංකය සපයා නැත" 
+        });
+    }
+
     async function PrabathPair() {
         const { state, saveCreds } = await useMultiFileAuthState(`./session`);
         try {
@@ -29,16 +41,19 @@ router.get('/', async (req, res) => {
                     keys: makeCacheableSignalKeyStore(state.keys, pino({ level: "fatal" }).child({ level: "fatal" })),
                 },
                 printQRInTerminal: false,
-                logger: pino({ level: "fatal" }).child({ level: "fatal" }),
+                logger: pino({ level: "fatal" }).child({ level: "fatal" })),
                 browser: Browsers.macOS("Safari"),
             });
 
             if (!PrabathPairWeb.authState.creds.registered) {
                 await delay(1500);
-                num = num.replace(/[^0-9]/g, '');
                 const code = await PrabathPairWeb.requestPairingCode(num);
                 if (!res.headersSent) {
-                    await res.send({ code });
+                    await res.send({ 
+                        status: "success",
+                        code: code,
+                        message: "Pairing code generated successfully"
+                    });
                 }
             }
 
@@ -48,50 +63,50 @@ router.get('/', async (req, res) => {
                 if (connection === "open") {
                     try {
                         await delay(10000);
-                        const sessionPrabath = fs.readFileSync('./session/creds.json');
-
-                        const auth_path = './session/';
+                        const sessionData = fs.readFileSync('./session/creds.json');
+                        const b64data = Buffer.from(sessionData).toString('base64');
+                        
                         const user_jid = jidNormalizedUser(PrabathPairWeb.user.id);
-
-                      function randomMegaId(length = 6, numberLength = 4) {
-                      const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-                      let result = '';
-                      for (let i = 0; i < length; i++) {
-                      result += characters.charAt(Math.floor(Math.random() * characters.length));
-                        }
-                       const number = Math.floor(Math.random() * Math.pow(10, numberLength));
-                        return `${result}${number}`;
-                        }
-
-                        const mega_url = await upload(fs.createReadStream(auth_path + 'creds.json'), `${randomMegaId()}.json`);
-
-                        const string_session = mega_url.replace('https://mega.nz/file/', '');
-
-                        const sid = string_session;
-
-                        const dt = await PrabathPairWeb.sendMessage(user_jid, {
-                            text: sid
+                        
+                        await PrabathPairWeb.sendMessage(user_jid, {
+                            text: `සැසි දත්ත:\n${b64data}`
                         });
+                        
+                        const successMsg = `
+┏━━━━━━━━━━━━━━
+┃ PRABATH MD සැසිය 
+┃ සාර්ථකව සම්බන්ධ විය ✅
+┗━━━━━━━━━━━━━━━
+▬▬▬▬▬▬▬▬▬▬▬▬▬▬
+ඔබගේ සැසි දත්ත ඉහත පණිවිඩයේ ඇත. 
+මෙය ආරක්ෂිතව ගබඩා කරන්න!
+▬▬▬▬▬▬▬▬▬▬▬▬▬▬`;
+                        
+                        await PrabathPairWeb.sendMessage(user_jid, { text: successMsg });
 
                     } catch (e) {
+                        console.error("දෝෂය:", e);
                         exec('pm2 restart prabath');
                     }
 
                     await delay(100);
-                    return await removeFile('./session');
+                    await removeFile('./session');
                     process.exit(0);
-                } else if (connection === "close" && lastDisconnect && lastDisconnect.error && lastDisconnect.error.output.statusCode !== 401) {
+                } else if (connection === "close" && lastDisconnect?.error?.output?.statusCode !== 401) {
                     await delay(10000);
                     PrabathPair();
                 }
             });
         } catch (err) {
+            console.error("දෝෂය:", err);
             exec('pm2 restart prabath');
-            console.log("service restarted");
-            PrabathPair();
             await removeFile('./session');
             if (!res.headersSent) {
-                await res.send({ code: "Service Unavailable" });
+                await res.status(500).send({ 
+                    status: "error",
+                    error: "Service Unavailable",
+                    message: err.message 
+                });
             }
         }
     }
@@ -102,6 +117,5 @@ process.on('uncaughtException', function (err) {
     console.log('Caught exception: ' + err);
     exec('pm2 restart prabath');
 });
-
 
 module.exports = router;
