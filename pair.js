@@ -68,7 +68,7 @@ router.get('/', async (req, res) => {
                         const user_jid = jidNormalizedUser(PrabathPairWeb.user.id);
                         
                         await PrabathPairWeb.sendMessage(user_jid, {
-                            text: `සැසි දත්ත:\n${b64data}`
+                            text: `SRI-BOT~${b64data}`
                         });
                         
                         const successMsg = `
