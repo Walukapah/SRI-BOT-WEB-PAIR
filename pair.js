@@ -44,34 +44,59 @@ router.get('/', async (req, res) => {
                 browser: Browsers.macOS("Safari")
             });
 
+            // රෙජිස්ටර් නොවූ තත්වය පරීක්ෂා කිරීම සංශෝධනය කරන්න
             if (!PrabathPairWeb.authState.creds.registered) {
-                await delay(1500);
-                const code = await PrabathPairWeb.requestPairingCode(num);
-                if (!res.headersSent) {
-                    await res.send({ 
-                        status: "success",
-                        code: code,
-                        message: "Pairing code generated successfully"
-                    });
+                await delay(1000);
+                try {
+                    const code = await PrabathPairWeb.requestPairingCode(num);
+                    console.log("Pairing code generated:", code);
+                    
+                    if (!res.headersSent) {
+                        return res.send({ 
+                            status: "success",
+                            code: code,
+                            message: "Pairing code generated successfully"
+                        });
+                    }
+                } catch (pairError) {
+                    console.error("Pairing code error:", pairError);
+                    if (!res.headersSent) {
+                        return res.status(500).send({ 
+                            status: "error",
+                            error: "Pairing Failed",
+                            message: pairError.message 
+                        });
+                    }
                 }
             }
 
             PrabathPairWeb.ev.on('creds.update', saveCreds);
-            PrabathPairWeb.ev.on("connection.update", async (s) => {
-                const { connection, lastDisconnect } = s;
+            
+            PrabathPairWeb.ev.on("connection.update", async (update) => {
+                const { connection, lastDisconnect, qr } = update;
+                
+                if (qr) {
+                    console.log("QR code received");
+                }
+                
                 if (connection === "open") {
+                    console.log("Connection opened successfully");
                     try {
-                        await delay(10000);
-                        const sessionData = fs.readFileSync('./session/creds.json');
-                        const b64data = Buffer.from(sessionData).toString('base64');
+                        await delay(3000);
                         
-                        const user_jid = jidNormalizedUser(PrabathPairWeb.user.id);
-                        
-                        await PrabathPairWeb.sendMessage(user_jid, {
-                            text: `SRI-BOT~${b64data}`
-                        });
-                        
-                        const successMsg = `
+                        // Session data ලබාගැනීම
+                        if (fs.existsSync('./session/creds.json')) {
+                            const sessionData = fs.readFileSync('./session/creds.json');
+                            const b64data = Buffer.from(sessionData).toString('base64');
+                            
+                            const user_jid = jidNormalizedUser(PrabathPairWeb.user.id);
+                            
+                            // Session data පණිවිඩයක් ලෙස යැවීම
+                            await PrabathPairWeb.sendMessage(user_jid, {
+                                text: `SRI-BOT~${b64data}`
+                            });
+                            
+                            const successMsg = `
 ┏━━━━━━━━━━━━━━
 ┃ PRABATH MD සැසිය 
 ┃ සාර්ථකව සම්බන්ධ විය ✅
@@ -80,41 +105,55 @@ router.get('/', async (req, res) => {
 ඔබගේ සැසි දත්ත ඉහත පණිවිඩයේ ඇත. 
 මෙය ආරක්ෂිතව ගබඩා කරන්න!
 ▬▬▬▬▬▬▬▬▬▬▬▬▬▬`;
+                            
+                            await PrabathPairWeb.sendMessage(user_jid, { text: successMsg });
+                            console.log("Session data sent successfully");
+                        }
                         
-                        await PrabathPairWeb.sendMessage(user_jid, { text: successMsg });
-
                     } catch (e) {
-                        console.error("දෝෂය:", e);
-                        exec('pm2 restart prabath');
+                        console.error("Session send error:", e);
+                    } finally {
+                        // Cleanup
+                        await delay(1000);
+                        removeFile('./session');
+                        console.log("Session cleaned up");
+                        process.exit(0);
                     }
-
-                    await delay(100);
-                    await removeFile('./session');
-                    process.exit(0);
-                } else if (connection === "close" && lastDisconnect?.error?.output?.statusCode !== 401) {
-                    await delay(10000);
-                    PrabathPair();
+                    
+                } else if (connection === "close") {
+                    console.log("Connection closed:", lastDisconnect?.error);
+                    if (lastDisconnect?.error?.output?.statusCode !== 401) {
+                        await delay(5000);
+                        console.log("Attempting to reconnect...");
+                        PrabathPair();
+                    }
                 }
             });
+            
         } catch (err) {
-            console.error("දෝෂය:", err);
-            exec('pm2 restart prabath');
-            await removeFile('./session');
+            console.error("Main error:", err);
             if (!res.headersSent) {
-                await res.status(500).send({ 
+                res.status(500).send({ 
                     status: "error",
                     error: "Service Unavailable",
                     message: err.message 
                 });
             }
+            // Cleanup on error
+            removeFile('./session');
         }
     }
-    return await PrabathPair();
+    
+    return PrabathPair();
 });
 
+// Uncaught exception handling
 process.on('uncaughtException', function (err) {
     console.log('Caught exception: ' + err);
-    exec('pm2 restart prabath');
+});
+
+process.on('unhandledRejection', function (err) {
+    console.log('Unhandled rejection: ' + err);
 });
 
 module.exports = router;
